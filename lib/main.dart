@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:isolate';
 
+import 'package:isolatetest/user.dart';
+
 void main() {
   runApp(MyApp());
   _initializeIsolate();
 }
 
-int? result;
+User? result;
 Isolate? _isolate;
 SendPort? isolateSendPort;
 final ReceivePort receivePort = ReceivePort();
@@ -16,14 +18,14 @@ void _initializeIsolate() async {
   receivePort.listen((data) {
     if (data is SendPort) {
       isolateSendPort = data;
-    } else if (data is int) {
-      result = data;
+    } else if (data is Map<String,dynamic>) {
+      result = User.fromMap(data);
     }
   });
 }
 
-void _startCalculation() {
-  isolateSendPort?.send('start');
+void _startCalculation(User user) {
+  isolateSendPort?.send(['start', user]);
 }
 
 void _isolatedFunction(SendPort sendPort) {
@@ -31,8 +33,10 @@ void _isolatedFunction(SendPort sendPort) {
   final receivePort = ReceivePort();
   sendPort.send(receivePort.sendPort);
   receivePort.listen((message) {
-    if (message == 'start') {
-      sendPort.send(1 + 1);
+    if (message[0] == 'start') {
+      // 여기서 User 객체를 생성 및 채움
+      User user = User('John', 'New York', ['Hello', 'World']);
+      sendPort.send(user.toMap());
     }
   });
 }
@@ -62,10 +66,10 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text('Result: ${result ?? "Not calculated yet."}'),
+            Text('Result: ${result?.city ?? "Not calculated yet."}'),
             ElevatedButton(
               onPressed: () {
-                _startCalculation();
+                _startCalculation(User.empty());
                 setState(() {});
               },
               child: Text('Calculate 1 + 1 in Isolate'),
